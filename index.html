@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Import an explicitly selected tab dataset and turn it into an explainable local research map.">
+  <title>Tabloom</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+  <header class="masthead">
+    <div>
+      <p class="kicker">Local research map</p>
+      <a href="#map-name">Tabloom</a>
+    </div>
+    <p>This web prototype never reads your browser tabs. You choose and import the dataset.</p>
+    <button id="privacy-button" type="button">Privacy review</button>
+  </header>
+
+  <main>
+    <aside class="capture-rail" aria-labelledby="capture-title">
+      <p class="step">Step 1</p>
+      <h1 id="capture-title">Bring selected tabs</h1>
+      <p>Paste a JSON array or choose a local JSON file. Accepted fields are <code>id</code>, <code>title</code>, <code>url</code>, <code>openerId</code>, <code>capturedAt</code> and <code>note</code>.</p>
+      <label for="dataset">Selected-tab dataset</label>
+      <textarea id="dataset" rows="11" spellcheck="false" placeholder='[{"id":"spec","title":"Storage specification","url":"https://example.test/spec"}]'></textarea>
+      <div class="capture-actions">
+        <button id="preview-import" class="primary" type="button">Preview imported fields</button>
+        <button id="load-sample" type="button">Use synthetic fixture</button>
+      </div>
+      <label class="file-label" for="dataset-file">Choose JSON file</label>
+      <input id="dataset-file" type="file" accept="application/json,.json">
+      <div id="capture-status" role="status" class="status">No selected tabs imported.</div>
+      <button id="cancel-job" type="button" hidden>Cancel current work</button>
+    </aside>
+
+    <section class="workspace" aria-labelledby="map-name-label">
+      <div class="workspace-heading">
+        <div>
+          <p class="step">Step 2</p>
+          <label id="map-name-label" for="map-name">Investigation name</label>
+          <input id="map-name" value="Untitled investigation" maxlength="120">
+        </div>
+        <div class="view-switcher" aria-label="Research view">
+          <button id="map-view-button" class="selected" type="button" aria-pressed="true">Map</button>
+          <button id="outline-view-button" type="button" aria-pressed="false">Outline</button>
+        </div>
+      </div>
+
+      <section id="capture-preview" class="capture-preview" aria-labelledby="preview-title" hidden>
+        <div class="section-heading">
+          <h2 id="preview-title">Capture preview</h2>
+          <button id="confirm-import" class="primary" type="button">Confirm selected dataset</button>
+        </div>
+        <p id="preview-summary"></p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Title</th><th>Address</th><th>Fields and warnings</th></tr></thead>
+            <tbody id="preview-rows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <div id="empty-map" class="empty-state">
+        <p class="step">Waiting for an explicit selection</p>
+        <h2>A useful map starts with one tab.</h2>
+        <p>Import the exact selected set at left. Tabloom will show its clustering reasons before you edit the structure.</p>
+      </div>
+      <section id="map-view" class="map-view" aria-label="Cluster map" hidden></section>
+      <section id="outline-view" class="outline-view" aria-label="Complete map outline" hidden></section>
+
+      <footer class="export-bar">
+        <p id="map-summary">Nothing stored. Imported datasets remain in this page until confirmed.</p>
+        <div>
+          <label class="check"><input id="strip-query" type="checkbox" checked> Strip query strings and fragments</label>
+          <button id="export-button" type="button" disabled>Review and export</button>
+        </div>
+      </footer>
+    </section>
+  </main>
+
+  <dialog id="review-dialog">
+    <form method="dialog"><button class="dialog-close" value="close">Close</button></form>
+    <div id="dialog-job-status" class="status" role="status" hidden></div>
+    <button id="dialog-cancel-job" type="button" hidden>Cancel current work</button>
+    <p class="step">Step 3</p>
+    <h2>Privacy-safe export</h2>
+    <div id="review-content"></div>
+  </dialog>
+  <script type="module" src="/src/app.js"></script>
+</body>
+</html>

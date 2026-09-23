@@ -1,0 +1,20 @@
+[
+  {
+    "id": "storage-root",
+    "title": "Web Storage overview",
+    "url": "https://developer.example.test/storage?campaign=synthetic",
+    "capturedAt": "2026-07-24T01:00:00Z"
+  },
+  {
+    "id": "quota",
+    "title": "Storage quotas and eviction",
+    "url": "https://developer.example.test/storage/quota",
+    "openerId": "storage-root",
+    "note": "Compare persistence and eviction conditions."
+  },
+  {
+    "id": "privacy",
+    "title": "Storage privacy considerations",
+    "url": "https://privacy.example.test/browser-storage"
+  }
+]
