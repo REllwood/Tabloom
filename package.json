@@ -6,11 +6,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/REllwood/tabloom.git"
+    "url": "git+https://github.com/REllwood/Tabloom.git"
   },
-  "homepage": "https://github.com/REllwood/tabloom#readme",
+  "homepage": "https://github.com/REllwood/Tabloom#readme",
   "bugs": {
-    "url": "https://github.com/REllwood/tabloom/issues"
+    "url": "https://github.com/REllwood/Tabloom/issues"
   },
   "type": "module",
   "engines": {

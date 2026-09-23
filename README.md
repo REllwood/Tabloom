@@ -25,8 +25,8 @@ Research leaves you with a window full of tabs you're scared to close. Tabloom g
 Requires Node.js 22 or newer. No `npm install` needed.
 
 ```sh
-git clone https://github.com/REllwood/tabloom.git
-cd tabloom
+git clone https://github.com/REllwood/Tabloom.git
+cd Tabloom
 npm start
 ```
 
