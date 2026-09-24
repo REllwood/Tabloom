@@ -1,4 +1,4 @@
-import { clusterTabs, duplicateGroups, exportMap, inspectUrl, restoreProject, validateTabDataset } from './core.js';
+import { buildProject, duplicateGroups, exportMap, inspectUrl, readImport, restoreProject } from './core.js';
 import { sampleTabs } from './sample.js';
 
 const storageKey = 'tabloom:v0.1';
@@ -24,13 +24,13 @@ const elements = {
   review: document.querySelector('#review-content')
 };
 
-let pendingTabs = [];
+let pendingImport = null;
 let pendingSource = null;
 let project = { version: 1, name: 'Untitled investigation', tabs: [], clusters: [] };
 let activeController = null;
 
 function invalidateImportPreview(message = 'Import source changed. Preview the current fields before confirming.') {
-  pendingTabs = [];
+  pendingImport = null;
   pendingSource = null;
   elements.preview.hidden = true;
   if (message) status(message);
@@ -76,10 +76,11 @@ function parseDataset(text) {
   } catch {
     throw new SyntaxError('The selected-tab dataset is not valid JSON.');
   }
-  return validateTabDataset(value);
+  return readImport(value);
 }
 
-function renderPreview(tabs) {
+function renderPreview(imported) {
+  const { tabs } = imported;
   elements.previewRows.replaceChildren();
   let warningCount = 0;
   for (const tab of tabs) {
@@ -102,7 +103,8 @@ function renderPreview(tabs) {
     row.append(title, address, fields);
     elements.previewRows.append(row);
   }
-  elements.previewSummary.textContent = `${tabs.length} selected ${tabs.length === 1 ? 'tab' : 'tabs'}; ${warningCount} privacy ${warningCount === 1 ? 'warning' : 'warnings'}. Page bodies, cookies, form values and browsing history are not fields in this import.`;
+  const restored = imported.fromExport ? `Tabloom export${imported.name ? ` “${imported.name}”` : ''}: its map name and cluster names will be restored. ` : '';
+  elements.previewSummary.textContent = `${restored}${tabs.length} selected ${tabs.length === 1 ? 'tab' : 'tabs'}; ${warningCount} privacy ${warningCount === 1 ? 'warning' : 'warnings'}. Page bodies, cookies, form values and browsing history are not fields in this import.`;
   elements.preview.hidden = false;
 }
 
@@ -298,11 +300,11 @@ async function reviewExport() {
 
 document.querySelector('#preview-import').addEventListener('click', async () => {
   const sourceText = elements.dataset.value;
-  const tabs = await runJob('validating selected-tab fields', async () => parseDataset(sourceText));
-  if (tabs) {
-    pendingTabs = tabs;
+  const imported = await runJob('validating selected-tab fields', async () => parseDataset(sourceText));
+  if (imported) {
+    pendingImport = imported;
     pendingSource = sourceText;
-    renderPreview(tabs);
+    renderPreview(imported);
   }
 });
 document.querySelector('#load-sample').addEventListener('click', () => {
@@ -329,9 +331,10 @@ document.querySelector('#confirm-import').addEventListener('click', async () => 
     invalidateImportPreview('The import source changed after preview. Preview the current fields before confirming.');
     return;
   }
-  const clustered = await runJob('building explainable clusters', async () => clusterTabs(pendingTabs));
-  if (!clustered) return;
-  project = { version: 1, name: elements.name.value, tabs: clustered.flatMap(({ tabs }) => tabs), clusters: clustered };
+  const built = await runJob('building explainable clusters', async () => buildProject({ ...pendingImport, name: pendingImport.name || elements.name.value }));
+  if (!built) return;
+  project = built;
+  elements.name.value = project.name;
   try {
     persist();
     renderProject();

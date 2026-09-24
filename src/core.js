@@ -187,6 +187,36 @@ export function clusterTabs(value) {
   return [...clusters.values()];
 }
 
+function clusterNameMap(clusters) {
+  return new Map(clusters
+    .filter((cluster) => typeof cluster.id === 'string' && typeof cluster.name === 'string' && cluster.name.trim())
+    .map((cluster) => [cluster.id, cluster.name.trim().slice(0, 120)]));
+}
+
+export function buildProject({ name, tabs, clusterNames = new Map() }) {
+  const clusters = clusterTabs(tabs).map((cluster) => ({ ...cluster, name: clusterNames.get(cluster.id) ?? cluster.name }));
+  return {
+    version: 1,
+    name: (typeof name === 'string' && name.trim().slice(0, 120)) || 'Untitled investigation',
+    tabs: clusters.flatMap((cluster) => cluster.tabs),
+    clusters
+  };
+}
+
+export function readImport(value) {
+  if (Array.isArray(value)) return { fromExport: false, name: '', tabs: validateTabDataset(value), clusterNames: new Map() };
+  if (value && typeof value === 'object' && value.version === 1 && Array.isArray(value.clusters)) {
+    const clusters = value.clusters.filter((cluster) => cluster && typeof cluster === 'object');
+    return {
+      fromExport: true,
+      name: typeof value.name === 'string' ? value.name.trim().slice(0, 120) : '',
+      tabs: validateTabDataset(clusters.flatMap((cluster) => (Array.isArray(cluster.tabs) ? cluster.tabs : []))),
+      clusterNames: clusterNameMap(clusters)
+    };
+  }
+  throw new TypeError('The import must be a JSON array of tabs or a Tabloom JSON export.');
+}
+
 export function restoreProject(stored) {
   if (!stored || typeof stored !== 'object') throw new TypeError('The stored map must be an object.');
   const storedClusters = Array.isArray(stored.clusters) ? stored.clusters.filter((cluster) => cluster && typeof cluster === 'object') : [];
@@ -197,14 +227,7 @@ export function restoreProject(stored) {
   const storedTabs = Array.isArray(stored.tabs)
     ? stored.tabs.map((tab) => (tab && typeof tab === 'object' && clusterNotes.has(tab.id) ? { ...tab, note: clusterNotes.get(tab.id) } : tab))
     : stored.tabs;
-  const names = new Map(storedClusters.filter((cluster) => typeof cluster.name === 'string').map((cluster) => [cluster.id, cluster.name.slice(0, 120)]));
-  const clusters = clusterTabs(storedTabs).map((cluster) => ({ ...cluster, name: names.get(cluster.id) ?? cluster.name }));
-  return {
-    version: 1,
-    name: (typeof stored.name === 'string' && stored.name.trim().slice(0, 120)) || 'Untitled investigation',
-    tabs: clusters.flatMap(({ tabs }) => tabs),
-    clusters
-  };
+  return buildProject({ name: stored.name, tabs: storedTabs, clusterNames: clusterNameMap(storedClusters) });
 }
 
 export function duplicateGroups(value) {

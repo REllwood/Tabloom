@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { clusterTabs, duplicateGroups, exportMap, inspectUrl, restoreProject, validateTabDataset } from '../src/core.js';
+import { buildProject, clusterTabs, duplicateGroups, exportMap, inspectUrl, readImport, restoreProject, validateTabDataset } from '../src/core.js';
 import { sampleTabs } from '../src/sample.js';
 
 const tabs = [
@@ -152,4 +152,18 @@ test('the fixture file matches the in-app synthetic sample', async () => {
   const fixture = JSON.parse(await readFile(new URL('../fixtures/selected-tabs.json', import.meta.url), 'utf8'));
   assert.deepEqual(fixture, sampleTabs);
   assert.deepEqual(clusterTabs(fixture).map(({ id }) => id), ['lineage:storage-root', 'host:privacy.example.test', 'host:localhost']);
+});
+
+test('a Tabloom JSON export can be imported again', () => {
+  const clusters = clusterTabs(tabs).map((cluster) => ({ ...cluster, name: `Renamed ${cluster.name}` }));
+  const imported = readImport(JSON.parse(exportMap({ name: 'Storage research', tabs, clusters }, 'json')));
+  assert.equal(imported.fromExport, true);
+  const project = buildProject(imported);
+  assert.equal(project.name, 'Storage research');
+  assert.deepEqual(project.clusters.map(({ name }) => name), ['Renamed Storage guide', 'Renamed issues.example.test']);
+  const child = project.tabs.find(({ id }) => id === 'child');
+  assert.deepEqual([child.openerId, child.note], ['root', 'Check eviction details.']);
+  assert.doesNotMatch(JSON.stringify(project), /utm_source|token=synthetic/);
+  assert.deepEqual(readImport(tabs).fromExport, false);
+  assert.throws(() => readImport({ name: 'Not an export' }), /array of tabs or a Tabloom JSON export/);
 });
