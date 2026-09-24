@@ -24,6 +24,16 @@ function boundedString(value, label, maximum, required = false) {
   return trimmed;
 }
 
+// Blank text falls back to a default instead of failing validation; other types still fail.
+function blankToEmpty(value) {
+  return typeof value === 'string' ? value.trim() : value;
+}
+
+// Browser tab APIs report tab ids as numbers.
+function idText(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? String(value) : value;
+}
+
 function clip(text, maximum) {
   if (text.length <= maximum) return text;
   const clipped = text.slice(0, maximum - 1).replace(/[\uD800-\uDBFF]$/u, '');
@@ -46,17 +56,20 @@ export function validateTabDataset(value) {
   if (!Array.isArray(value)) throw new TypeError('The imported dataset must be a JSON array.');
   if (value.length === 0) throw new RangeError('Select at least one tab before import.');
   if (value.length > MAX_TABS) throw new RangeError(`At most ${MAX_TABS} selected tabs can be imported.`);
+  const suppliedIds = new Set(value.map((candidate) => blankToEmpty(idText(candidate?.id))).filter((id) => typeof id === 'string'));
   const ids = new Set();
   const tabs = value.map((candidate, index) => {
     if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) throw new TypeError(`Tab ${index + 1} must be an object.`);
-    const id = boundedString(candidate.id ?? `tab-${index + 1}`, `Tab ${index + 1} id`, 100, true);
+    let generatedId = `tab-${index + 1}`;
+    for (let suffix = 2; suppliedIds.has(generatedId); suffix += 1) generatedId = `tab-${index + 1}-${suffix}`;
+    const id = boundedString(idText(candidate.id) ?? generatedId, `Tab ${index + 1} id`, 100, true);
     if (ids.has(id)) throw new RangeError(`Duplicate tab id: ${id}`);
     ids.add(id);
     return {
       id,
-      title: boundedString(candidate.title || 'Untitled page', `Tab ${index + 1} title`, MAX_TITLE, true),
+      title: boundedString(blankToEmpty(candidate.title) || 'Untitled page', `Tab ${index + 1} title`, MAX_TITLE, true),
       url: normaliseUrl(candidate.url),
-      openerId: boundedString(candidate.openerId, `Tab ${index + 1} openerId`, 100),
+      openerId: boundedString(idText(candidate.openerId), `Tab ${index + 1} openerId`, 100),
       note: boundedString(candidate.note, `Tab ${index + 1} note`, MAX_NOTE),
       capturedAt: boundedString(candidate.capturedAt, `Tab ${index + 1} capturedAt`, 80)
     };
@@ -198,7 +211,7 @@ export function restoreProject(stored) {
   const clusters = clusterTabs(storedTabs).map((cluster) => ({ ...cluster, name: names.get(cluster.id) ?? cluster.name }));
   return {
     version: 1,
-    name: typeof stored.name === 'string' ? stored.name.slice(0, 120) : 'Untitled investigation',
+    name: (typeof stored.name === 'string' && stored.name.trim().slice(0, 120)) || 'Untitled investigation',
     tabs: clusters.flatMap(({ tabs }) => tabs),
     clusters
   };
@@ -242,12 +255,12 @@ export function exportMap(project, format, options = {}) {
   const tabs = validateTabDataset(project.tabs);
   const clusterSource = Array.isArray(project.clusters) ? project.clusters : clusterTabs(tabs);
   const stripQuery = options.stripQuery !== false;
-  const title = boundedString(project.name || 'Untitled research map', 'Map name', 120, true);
+  const title = boundedString(blankToEmpty(project.name) || 'Untitled investigation', 'Map name', 120, true);
   const tabById = new Map(tabs.map((tab) => [tab.id, tab]));
   const clusters = clusterSource.map((cluster, index) => ({
-    id: boundedString(cluster.id || `cluster-${index + 1}`, 'Cluster id', 300, true),
-    name: boundedString(cluster.name || `Cluster ${index + 1}`, 'Cluster name', 120, true),
-    rationale: boundedString(cluster.rationale || 'Manually arranged by the user.', 'Cluster rationale', 500, true),
+    id: boundedString(blankToEmpty(cluster.id) || `cluster-${index + 1}`, 'Cluster id', 300, true),
+    name: boundedString(blankToEmpty(cluster.name) || `Cluster ${index + 1}`, 'Cluster name', 120, true),
+    rationale: boundedString(blankToEmpty(cluster.rationale) || 'Manually arranged by the user.', 'Cluster rationale', 500, true),
     tabs: (cluster.tabs ?? []).map((item) => tabById.get(typeof item === 'string' ? item : item.id)).filter(Boolean)
   }));
   const safeClusters = clusters.map((cluster) => ({
