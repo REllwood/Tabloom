@@ -31,7 +31,7 @@ cd Tabloom
 npm start
 ```
 
-Open http://127.0.0.1:4174 and press **Use synthetic fixture** to load a sample research session.
+Open http://127.0.0.1:4174 and press **Use synthetic fixture** to load a sample research session. The same sample is in [`fixtures/selected-tabs.json`](fixtures/selected-tabs.json) if you'd rather try **Choose JSON file**.
 
 ## Status
 
