@@ -69,15 +69,23 @@ function classifyIpv4(hostname) {
   return 'public';
 }
 
+// Names that only resolve on a local network: RFC 6761, RFC 6762, RFC 8375, ICANN's private-use .internal,
+// and the undelegated suffixes most often used on home and office networks.
+const LOCAL_NAME_SUFFIXES = ['localhost', 'local', 'internal', 'home.arpa', 'lan', 'home', 'corp'];
+
+function isLocalName(hostname) {
+  return !hostname.includes('.') || LOCAL_NAME_SUFFIXES.some((suffix) => hostname === suffix || hostname.endsWith(`.${suffix}`));
+}
+
 export function inspectUrl(value) {
   const url = new URL(normaliseUrl(value));
   const hostname = url.hostname.replace(/^\[|\]$/gu, '').replace(/\.+$/u, '').toLocaleLowerCase('en-AU');
   let networkScope = 'public';
-  if (hostname === 'localhost' || hostname.endsWith('.localhost') || hostname.endsWith('.local')) {
-    networkScope = 'local-name';
-  } else if (!hostname.includes(':')) {
+  if (/^[\d.]+$/u.test(hostname)) {
     networkScope = classifyIpv4(hostname);
-  } else if (hostname.includes(':')) {
+  } else if (!hostname.includes(':')) {
+    networkScope = isLocalName(hostname) ? 'local-name' : 'public';
+  } else {
     const firstGroup = Number.parseInt(hostname.split(':')[0] || '0', 16);
     if (hostname === '::' || hostname === '::1') networkScope = 'IPv6 loopback-or-unspecified';
     else if ((firstGroup & 0xfe00) === 0xfc00) networkScope = 'IPv6 unique-local';

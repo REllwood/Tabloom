@@ -101,3 +101,14 @@ test('opener cycles form one lineage rooted at the earliest tab in the cycle', (
   assert.deepEqual(clusterTabs([...cyclic].reverse()).map(({ id }) => id), ['lineage:b']);
   assert.deepEqual(clusterTabs([{ id: 'self', title: 'Self', url: 'https://a.example.test/', openerId: 'self' }]).map(({ id }) => id), ['host:a.example.test']);
 });
+
+test('URL inspection flags private-network names and leaves public names alone', () => {
+  for (const address of ['http://nas.lan/', 'http://intranet.corp/', 'http://router.home.arpa/', 'http://build.internal/', 'http://media.home/', 'http://printer/']) {
+    assert.equal(inspectUrl(address).networkScope, 'local-name', address);
+  }
+  for (const address of ['https://example.com/', 'https://docs.example.test/', 'https://lan.example.com/', 'https://corp.example.org/']) {
+    assert.equal(inspectUrl(address).local, false, address);
+  }
+  assert.equal(inspectUrl('http://10.1.2.3/').networkScope, 'private');
+  assert.equal(inspectUrl('http://0x7f.1/').networkScope, 'loopback-or-unspecified');
+});
