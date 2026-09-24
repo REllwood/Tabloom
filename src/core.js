@@ -24,6 +24,12 @@ function boundedString(value, label, maximum, required = false) {
   return trimmed;
 }
 
+function clip(text, maximum) {
+  if (text.length <= maximum) return text;
+  const clipped = text.slice(0, maximum - 1).replace(/[\uD800-\uDBFF]$/u, '');
+  return `${clipped.trimEnd()}…`;
+}
+
 export function normaliseUrl(value) {
   const raw = boundedString(value, 'URL', MAX_URL, true);
   let parsed;
@@ -165,7 +171,7 @@ export function clusterTabs(value) {
     if (!clusters.has(key)) {
       clusters.set(key, {
         id: key,
-        name: followsLineage ? root.title : url.hostname,
+        name: clip(followsLineage ? root.title : url.hostname, 120),
         rationale: followsLineage
           ? `Grouped because these tabs descend from “${root.title}” through opened-from relationships.`
           : `Grouped because these tabs share the exact host ${url.hostname}.`,
@@ -239,7 +245,7 @@ export function exportMap(project, format, options = {}) {
   const title = boundedString(project.name || 'Untitled research map', 'Map name', 120, true);
   const tabById = new Map(tabs.map((tab) => [tab.id, tab]));
   const clusters = clusterSource.map((cluster, index) => ({
-    id: boundedString(cluster.id || `cluster-${index + 1}`, 'Cluster id', 120, true),
+    id: boundedString(cluster.id || `cluster-${index + 1}`, 'Cluster id', 300, true),
     name: boundedString(cluster.name || `Cluster ${index + 1}`, 'Cluster name', 120, true),
     rationale: boundedString(cluster.rationale || 'Manually arranged by the user.', 'Cluster rationale', 500, true),
     tabs: (cluster.tabs ?? []).map((item) => tabById.get(typeof item === 'string' ? item : item.id)).filter(Boolean)
