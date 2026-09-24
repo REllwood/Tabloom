@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { clusterTabs, datasetDigest, duplicateGroups, exportMap, inspectUrl, validateTabDataset } from '../src/core.js';
+import { clusterTabs, datasetDigest, duplicateGroups, exportMap, inspectUrl, restoreProject, validateTabDataset } from '../src/core.js';
 
 const tabs = [
   { id: 'root', title: 'Storage guide', url: 'https://docs.example.test/storage?utm_source=fixture' },
@@ -67,4 +67,24 @@ test('dataset digests change whenever the reviewed source text changes', () => {
 test('duplicate detection reports exact normalised addresses', () => {
   const duplicated = [...tabs, { id: 'copy', title: 'Copy', url: tabs[2].url }];
   assert.deepEqual(duplicateGroups(duplicated)[0].ids, ['other', 'copy']);
+});
+
+test('restored maps keep note edits across reloads and in exports', () => {
+  const saved = JSON.parse(JSON.stringify({ name: 'Saved map', tabs, clusters: clusterTabs(tabs).map((cluster) => ({ ...cluster, name: `Renamed ${cluster.name}` })) }));
+  const restored = restoreProject(saved);
+  const child = restored.clusters[0].tabs.find(({ id }) => id === 'child');
+  assert.equal(child, restored.tabs.find(({ id }) => id === 'child'));
+  child.note = 'Edited after reload.';
+  assert.match(exportMap(restored, 'json'), /Edited after reload\./);
+  const reloaded = restoreProject(JSON.parse(JSON.stringify(restored)));
+  assert.equal(reloaded.tabs.find(({ id }) => id === 'child').note, 'Edited after reload.');
+  assert.equal(reloaded.name, 'Saved map');
+  assert.deepEqual(reloaded.clusters.map(({ name }) => name), ['Renamed Storage guide', 'Renamed issues.example.test']);
+});
+
+test('restoring recovers notes that earlier versions saved only on cluster copies', () => {
+  const saved = JSON.parse(JSON.stringify({ name: 'Saved map', tabs, clusters: clusterTabs(tabs) }));
+  saved.clusters[0].tabs[1].note = 'Only saved on the cluster copy.';
+  assert.equal(restoreProject(saved).tabs.find(({ id }) => id === 'child').note, 'Only saved on the cluster copy.');
+  assert.throws(() => restoreProject(null), /must be an object/);
 });
