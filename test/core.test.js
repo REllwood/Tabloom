@@ -88,3 +88,16 @@ test('restoring recovers notes that earlier versions saved only on cluster copie
   assert.equal(restoreProject(saved).tabs.find(({ id }) => id === 'child').note, 'Only saved on the cluster copy.');
   assert.throws(() => restoreProject(null), /must be an object/);
 });
+
+test('opener cycles form one lineage rooted at the earliest tab in the cycle', () => {
+  const cyclic = [
+    { id: 'a', title: 'A', url: 'https://a.example.test/', openerId: 'b' },
+    { id: 'b', title: 'B', url: 'https://b.example.test/', openerId: 'a' },
+    { id: 'c', title: 'C', url: 'https://c.example.test/', openerId: 'a' }
+  ];
+  const clusters = clusterTabs(cyclic);
+  assert.deepEqual(clusters.map(({ id }) => id), ['lineage:a']);
+  assert.deepEqual(clusters[0].tabs.map(({ id }) => id), ['a', 'b', 'c']);
+  assert.deepEqual(clusterTabs([...cyclic].reverse()).map(({ id }) => id), ['lineage:b']);
+  assert.deepEqual(clusterTabs([{ id: 'self', title: 'Self', url: 'https://a.example.test/', openerId: 'self' }]).map(({ id }) => id), ['host:a.example.test']);
+});

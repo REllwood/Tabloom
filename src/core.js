@@ -124,27 +124,33 @@ export function privacySafeUrl(value, stripQuery = true) {
   return url.href;
 }
 
-function rootFor(tab, byId) {
+function rootFor(tab, byId, order) {
+  const path = [];
+  const positions = new Map();
   let current = tab;
-  const visited = new Set([current.id]);
-  while (current.openerId && byId.has(current.openerId) && !visited.has(current.openerId)) {
-    visited.add(current.openerId);
-    current = byId.get(current.openerId);
+  while (true) {
+    positions.set(current.id, path.length);
+    path.push(current);
+    const opener = byId.get(current.openerId);
+    if (!opener) return current;
+    if (positions.has(opener.id)) {
+      // Every tab that reaches an opener cycle shares its earliest member as the root.
+      return path.slice(positions.get(opener.id)).reduce((earliest, member) => (order.get(member.id) < order.get(earliest.id) ? member : earliest));
+    }
+    current = opener;
   }
-  return current;
 }
 
 export function clusterTabs(value) {
   const tabs = validateTabDataset(value);
   const byId = new Map(tabs.map((tab) => [tab.id, tab]));
+  const order = new Map(tabs.map((tab, index) => [tab.id, index]));
+  const roots = new Map(tabs.map((tab) => [tab.id, rootFor(tab, byId, order)]));
   const lineageCounts = new Map();
-  for (const tab of tabs) {
-    const root = rootFor(tab, byId);
-    lineageCounts.set(root.id, (lineageCounts.get(root.id) ?? 0) + 1);
-  }
+  for (const root of roots.values()) lineageCounts.set(root.id, (lineageCounts.get(root.id) ?? 0) + 1);
   const clusters = new Map();
   for (const tab of tabs) {
-    const root = rootFor(tab, byId);
+    const root = roots.get(tab.id);
     const url = new URL(tab.url);
     const followsLineage = (lineageCounts.get(root.id) ?? 0) > 1;
     const key = followsLineage ? `lineage:${root.id}` : `host:${url.hostname}`;
