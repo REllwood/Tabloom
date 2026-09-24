@@ -128,3 +128,25 @@ test('long root titles and host names still cluster and export', () => {
   assert.equal(clusters[1].id, `host:${host}`);
   for (const format of ['json', 'markdown', 'html']) assert.doesNotThrow(() => exportMap({ name: 'Long names', tabs: long, clusters }, format), format);
 });
+
+test('validation accepts numeric ids, blank titles and ids that clash with generated ones', () => {
+  const result = validateTabDataset([
+    { id: 'tab-2', title: '   ', url: 'https://a.example.test/' },
+    { title: 'Second', url: 'https://b.example.test/' },
+    { id: 41, title: 'Numbered', url: 'https://c.example.test/' },
+    { id: 42, title: 'Child', url: 'https://c.example.test/child', openerId: 41 }
+  ]);
+  assert.equal(result[0].title, 'Untitled page');
+  assert.equal(result[1].id, 'tab-2-2');
+  assert.deepEqual(result.slice(2).map(({ id, openerId }) => [id, openerId]), [['41', ''], ['42', '41']]);
+  assert.throws(() => validateTabDataset([{ id: 'x', title: 7, url: 'https://a.example.test/' }]), /title must be text/);
+  assert.throws(() => validateTabDataset([{ id: 'x', url: 'https://a.example.test/' }, { id: 'x', url: 'https://b.example.test/' }]), /Duplicate tab id: x/);
+});
+
+test('blank map and cluster names export with defaults', () => {
+  const clusters = clusterTabs(tabs).map((cluster) => ({ ...cluster, name: '   ' }));
+  const exported = JSON.parse(exportMap({ name: '  ', tabs, clusters }, 'json'));
+  assert.equal(exported.name, 'Untitled investigation');
+  assert.deepEqual(exported.clusters.map(({ name }) => name), ['Cluster 1', 'Cluster 2']);
+  assert.equal(restoreProject({ name: '  ', tabs }).name, 'Untitled investigation');
+});
