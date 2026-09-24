@@ -164,6 +164,26 @@ export function clusterTabs(value) {
   return [...clusters.values()];
 }
 
+export function restoreProject(stored) {
+  if (!stored || typeof stored !== 'object') throw new TypeError('The stored map must be an object.');
+  const storedClusters = Array.isArray(stored.clusters) ? stored.clusters.filter((cluster) => cluster && typeof cluster === 'object') : [];
+  // Earlier versions saved note edits made after a reload only on the cluster copies of each tab.
+  const clusterNotes = new Map(storedClusters.flatMap((cluster) => (Array.isArray(cluster.tabs) ? cluster.tabs : []))
+    .filter((tab) => tab && typeof tab.id === 'string' && typeof tab.note === 'string')
+    .map((tab) => [tab.id, tab.note]));
+  const storedTabs = Array.isArray(stored.tabs)
+    ? stored.tabs.map((tab) => (tab && typeof tab === 'object' && clusterNotes.has(tab.id) ? { ...tab, note: clusterNotes.get(tab.id) } : tab))
+    : stored.tabs;
+  const names = new Map(storedClusters.filter((cluster) => typeof cluster.name === 'string').map((cluster) => [cluster.id, cluster.name.slice(0, 120)]));
+  const clusters = clusterTabs(storedTabs).map((cluster) => ({ ...cluster, name: names.get(cluster.id) ?? cluster.name }));
+  return {
+    version: 1,
+    name: typeof stored.name === 'string' ? stored.name.slice(0, 120) : 'Untitled investigation',
+    tabs: clusters.flatMap(({ tabs }) => tabs),
+    clusters
+  };
+}
+
 export function duplicateGroups(value) {
   const tabs = validateTabDataset(value);
   const groups = new Map();

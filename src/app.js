@@ -1,4 +1,4 @@
-import { clusterTabs, datasetDigest, duplicateGroups, exportMap, inspectUrl, validateTabDataset } from './core.js';
+import { clusterTabs, datasetDigest, duplicateGroups, exportMap, inspectUrl, restoreProject, validateTabDataset } from './core.js';
 
 const storageKey = 'tabloom:v0.1';
 const sampleTabs = [
@@ -127,16 +127,7 @@ function restore() {
   try {
     const raw = localStorage.getItem(storageKey);
     if (!raw) return;
-    const parsed = JSON.parse(raw);
-    const tabs = validateTabDataset(parsed.tabs);
-    const defaultClusters = clusterTabs(tabs);
-    const names = new Map(Array.isArray(parsed.clusters) ? parsed.clusters.map((cluster) => [cluster.id, cluster.name]) : []);
-    project = {
-      version: 1,
-      name: typeof parsed.name === 'string' ? parsed.name.slice(0, 120) : 'Untitled investigation',
-      tabs,
-      clusters: defaultClusters.map((cluster) => ({ ...cluster, name: typeof names.get(cluster.id) === 'string' ? names.get(cluster.id).slice(0, 120) : cluster.name }))
-    };
+    project = restoreProject(JSON.parse(raw));
     elements.name.value = project.name;
     renderProject();
     status('Recovered the locally stored research map.');
