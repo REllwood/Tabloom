@@ -112,3 +112,19 @@ test('URL inspection flags private-network names and leaves public names alone',
   assert.equal(inspectUrl('http://10.1.2.3/').networkScope, 'private');
   assert.equal(inspectUrl('http://0x7f.1/').networkScope, 'loopback-or-unspecified');
 });
+
+test('long root titles and host names still cluster and export', () => {
+  const host = `${'sub'.repeat(40)}.example.test`;
+  const long = [
+    { id: 'root', title: 'T'.repeat(300), url: 'https://a.example.test/' },
+    { id: 'child', title: 'Child', url: 'https://a.example.test/child', openerId: 'root' },
+    { id: 'far', title: 'Far', url: `https://${host}/` },
+    { id: 'emoji', title: '😀'.repeat(100), url: 'https://b.example.test/' },
+    { id: 'reply', title: 'Reply', url: 'https://b.example.test/reply', openerId: 'emoji' }
+  ];
+  const clusters = clusterTabs(long);
+  assert.deepEqual(clusters.map(({ name }) => name.length <= 120 && name.endsWith('…')), [true, true, true]);
+  assert.ok(clusters[2].name.isWellFormed());
+  assert.equal(clusters[1].id, `host:${host}`);
+  for (const format of ['json', 'markdown', 'html']) assert.doesNotThrow(() => exportMap({ name: 'Long names', tabs: long, clusters }, format), format);
+});
