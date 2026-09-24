@@ -247,8 +247,11 @@ function download(content, extension, type) {
   const link = document.createElement('a');
   link.href = url;
   link.download = `tabloom-map.${extension}`;
+  document.body.append(link);
   link.click();
-  URL.revokeObjectURL(url);
+  link.remove();
+  // Revoking the address straight after the click can cancel the download in some browsers.
+  window.setTimeout(() => URL.revokeObjectURL(url), 40_000);
 }
 
 async function reviewExport() {
