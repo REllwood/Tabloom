@@ -12,8 +12,7 @@ const types = new Map([
   ['.css', 'text/css; charset=utf-8'],
   ['.html', 'text/html; charset=utf-8'],
   ['.js', 'text/javascript; charset=utf-8'],
-  ['.json', 'application/json; charset=utf-8'],
-  ['.md', 'text/markdown; charset=utf-8']
+  ['.json', 'application/json; charset=utf-8']
 ]);
 const publicFiles = new Map([
   ['/', resolve(root, 'index.html')],
@@ -25,11 +24,15 @@ const publicFiles = new Map([
 ]);
 
 const server = createServer(async (request, response) => {
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    response.writeHead(405, { Allow: 'GET, HEAD', 'Content-Type': 'text/plain; charset=utf-8' }).end('Method not allowed');
+    return;
+  }
   try {
     const pathname = decodeURIComponent(new URL(request.url ?? '/', `http://${host}`).pathname);
     const target = publicFiles.get(pathname);
     if (!target) {
-      response.writeHead(404).end('Not found');
+      response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Not found');
       return;
     }
     response.writeHead(200, {
