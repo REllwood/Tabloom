@@ -4,6 +4,7 @@
 
 **Weave a crowded browser window into a small, explainable research map.**
 
+[![CI](https://github.com/REllwood/Tabloom/actions/workflows/ci.yml/badge.svg)](https://github.com/REllwood/Tabloom/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-2f6f4e?style=flat-square)](LICENSE)
 ![Node 22+](https://img.shields.io/badge/node-%3E%3D22-43853d?style=flat-square&logo=node.js&logoColor=white)
 ![Zero dependencies](https://img.shields.io/badge/dependencies-0-555?style=flat-square)
