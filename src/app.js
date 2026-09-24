@@ -1,4 +1,4 @@
-import { buildProject, duplicateGroups, exportMap, inspectUrl, readImport, restoreProject } from './core.js';
+import { buildProject, clusterTabs, duplicateGroups, exportMap, inspectUrl, readImport, restoreProject } from './core.js';
 import { sampleTabs } from './sample.js';
 
 const storageKey = 'tabloom:v0.1';
@@ -18,6 +18,8 @@ const elements = {
   outline: document.querySelector('#outline-view'),
   empty: document.querySelector('#empty-map'),
   mapSummary: document.querySelector('#map-summary'),
+  mapViewButton: document.querySelector('#map-view-button'),
+  outlineViewButton: document.querySelector('#outline-view-button'),
   exportButton: document.querySelector('#export-button'),
   stripQuery: document.querySelector('#strip-query'),
   dialog: document.querySelector('#review-dialog'),
@@ -28,6 +30,7 @@ let pendingImport = null;
 let pendingSource = null;
 let project = { version: 1, name: 'Untitled investigation', tabs: [], clusters: [] };
 let activeController = null;
+let outlineSelected = false;
 
 function invalidateImportPreview(message = 'Import source changed. Preview the current fields before confirming.') {
   pendingImport = null;
@@ -168,16 +171,21 @@ function nodeElement(tab) {
 
 function renderMap() {
   elements.map.replaceChildren();
-  for (const cluster of project.clusters) {
+  const generatedNames = new Map(clusterTabs(project.tabs).map((cluster) => [cluster.id, cluster.name]));
+  project.clusters.forEach((cluster, index) => {
     const section = document.createElement('section');
     section.className = 'cluster';
     const name = document.createElement('input');
     name.className = 'cluster-name';
     name.value = cluster.name;
     name.maxLength = 120;
-    name.setAttribute('aria-label', `Cluster name for ${cluster.name}`);
+    name.setAttribute('aria-label', `Cluster ${index + 1} name`);
+    // Clearing a name returns the cluster to the name Tabloom generated for it.
+    name.addEventListener('blur', () => {
+      if (!name.value.trim()) name.value = cluster.name;
+    });
     name.addEventListener('input', () => {
-      cluster.name = name.value.slice(0, 120) || 'Unnamed cluster';
+      cluster.name = name.value.trim() ? name.value.slice(0, 120) : generatedNames.get(cluster.id) ?? `Cluster ${index + 1}`;
       try {
         persist();
         renderOutline();
@@ -191,7 +199,7 @@ function renderMap() {
     section.append(name, rationale);
     for (const tab of cluster.tabs) section.append(nodeElement(tab));
     elements.map.append(section);
-  }
+  });
 }
 
 function renderOutline() {
@@ -225,21 +233,31 @@ function renderOutline() {
 
 function renderProject() {
   elements.empty.hidden = project.tabs.length > 0;
-  elements.map.hidden = project.tabs.length === 0 || document.querySelector('#outline-view-button').ariaPressed === 'true';
-  elements.outline.hidden = project.tabs.length === 0 || document.querySelector('#outline-view-button').ariaPressed !== 'true';
+  showView();
   elements.exportButton.disabled = project.tabs.length === 0;
   renderMap();
   renderOutline();
   elements.mapSummary.textContent = `${project.tabs.length} selected tabs in ${project.clusters.length} explainable ${project.clusters.length === 1 ? 'cluster' : 'clusters'}.`;
 }
 
+function showView() {
+  elements.mapViewButton.setAttribute('aria-pressed', String(!outlineSelected));
+  elements.outlineViewButton.setAttribute('aria-pressed', String(outlineSelected));
+  elements.mapViewButton.classList.toggle('selected', !outlineSelected);
+  elements.outlineViewButton.classList.toggle('selected', outlineSelected);
+  elements.map.hidden = outlineSelected || project.tabs.length === 0;
+  elements.outline.hidden = !outlineSelected || project.tabs.length === 0;
+}
+
 function switchView(outline) {
-  document.querySelector('#map-view-button').ariaPressed = String(!outline);
-  document.querySelector('#outline-view-button').ariaPressed = String(outline);
-  document.querySelector('#map-view-button').classList.toggle('selected', !outline);
-  document.querySelector('#outline-view-button').classList.toggle('selected', outline);
-  elements.map.hidden = outline || project.tabs.length === 0;
-  elements.outline.hidden = !outline || project.tabs.length === 0;
+  outlineSelected = outline;
+  showView();
+}
+
+function openDialog() {
+  // A finished job's status would otherwise linger in the dialog the next time it opens.
+  elements.dialogStatus.hidden = !activeController;
+  elements.dialog.showModal();
 }
 
 function download(content, extension, type) {
@@ -298,7 +316,7 @@ async function reviewExport() {
     actions.append(button);
   }
   elements.review.append(list, boundary, actions);
-  elements.dialog.showModal();
+  openDialog();
 }
 
 document.querySelector('#preview-import').addEventListener('click', async () => {
@@ -319,6 +337,7 @@ document.querySelector('#load-sample').addEventListener('click', () => {
 elements.file.addEventListener('change', async () => {
   const file = elements.file.files?.[0];
   if (!file) return;
+  elements.file.value = '';
   const text = await runJob('reading local JSON file', async () => {
     if (file.size > 300_000) throw new RangeError('The JSON file is limited to 300,000 bytes.');
     return file.text();
@@ -354,8 +373,8 @@ elements.name.addEventListener('input', () => {
     try { persist(); } catch (error) { status(`Map name remains in this page but local save failed: ${error.message}`); }
   }
 });
-document.querySelector('#map-view-button').addEventListener('click', () => switchView(false));
-document.querySelector('#outline-view-button').addEventListener('click', () => switchView(true));
+elements.mapViewButton.addEventListener('click', () => switchView(false));
+elements.outlineViewButton.addEventListener('click', () => switchView(true));
 elements.exportButton.addEventListener('click', reviewExport);
 document.querySelector('#privacy-button').addEventListener('click', () => {
   elements.review.replaceChildren();
@@ -364,7 +383,7 @@ document.querySelector('#privacy-button').addEventListener('click', () => {
     ? `This local map currently contains ${project.tabs.length} selected titles, addresses, opener relationships and user notes. It contains no page bodies, cookies, form values or full browsing history.`
     : 'No dataset is stored. This prototype reads only JSON that you explicitly paste or choose.';
   elements.review.append(text);
-  elements.dialog.showModal();
+  openDialog();
 });
 elements.cancel.addEventListener('click', () => activeController?.abort());
 elements.dialogCancel.addEventListener('click', () => activeController?.abort());
