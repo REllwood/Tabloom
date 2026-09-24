@@ -1,4 +1,4 @@
-import { clusterTabs, datasetDigest, duplicateGroups, exportMap, inspectUrl, restoreProject, validateTabDataset } from './core.js';
+import { clusterTabs, duplicateGroups, exportMap, inspectUrl, restoreProject, validateTabDataset } from './core.js';
 import { sampleTabs } from './sample.js';
 
 const storageKey = 'tabloom:v0.1';
@@ -25,14 +25,12 @@ const elements = {
 };
 
 let pendingTabs = [];
-let pendingDigest = null;
 let pendingSource = null;
 let project = { version: 1, name: 'Untitled investigation', tabs: [], clusters: [] };
 let activeController = null;
 
 function invalidateImportPreview(message = 'Import source changed. Preview the current fields before confirming.') {
   pendingTabs = [];
-  pendingDigest = null;
   pendingSource = null;
   elements.preview.hidden = true;
   if (message) status(message);
@@ -303,7 +301,6 @@ document.querySelector('#preview-import').addEventListener('click', async () => 
   const tabs = await runJob('validating selected-tab fields', async () => parseDataset(sourceText));
   if (tabs) {
     pendingTabs = tabs;
-    pendingDigest = datasetDigest(sourceText);
     pendingSource = sourceText;
     renderPreview(tabs);
   }
@@ -328,7 +325,7 @@ elements.file.addEventListener('change', async () => {
   }
 });
 document.querySelector('#confirm-import').addEventListener('click', async () => {
-  if (!pendingDigest || pendingSource !== elements.dataset.value || pendingDigest !== datasetDigest(elements.dataset.value)) {
+  if (pendingSource !== elements.dataset.value) {
     invalidateImportPreview('The import source changed after preview. Preview the current fields before confirming.');
     return;
   }

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { clusterTabs, datasetDigest, duplicateGroups, exportMap, inspectUrl, restoreProject, validateTabDataset } from '../src/core.js';
+import { clusterTabs, duplicateGroups, exportMap, inspectUrl, restoreProject, validateTabDataset } from '../src/core.js';
 import { sampleTabs } from '../src/sample.js';
 
 const tabs = [
@@ -59,11 +59,6 @@ test('Markdown export neutralises authored syntax and removes URL credentials', 
   assert.doesNotMatch(markdown, /\]\(javascript:/);
   assert.match(markdown, /\\# Map/);
   assert.match(markdown, /%28b%29/);
-});
-
-test('dataset digests change whenever the reviewed source text changes', () => {
-  assert.equal(datasetDigest('[1]'), datasetDigest('[1]'));
-  assert.notEqual(datasetDigest('[1]'), datasetDigest('[1 ]'));
 });
 
 test('duplicate detection reports exact normalised addresses', () => {
