@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { clusterTabs, datasetDigest, duplicateGroups, exportMap, inspectUrl, restoreProject, validateTabDataset } from '../src/core.js';
+import { sampleTabs } from '../src/sample.js';
 
 const tabs = [
   { id: 'root', title: 'Storage guide', url: 'https://docs.example.test/storage?utm_source=fixture' },
@@ -149,4 +151,10 @@ test('blank map and cluster names export with defaults', () => {
   assert.equal(exported.name, 'Untitled investigation');
   assert.deepEqual(exported.clusters.map(({ name }) => name), ['Cluster 1', 'Cluster 2']);
   assert.equal(restoreProject({ name: '  ', tabs }).name, 'Untitled investigation');
+});
+
+test('the fixture file matches the in-app synthetic sample', async () => {
+  const fixture = JSON.parse(await readFile(new URL('../fixtures/selected-tabs.json', import.meta.url), 'utf8'));
+  assert.deepEqual(fixture, sampleTabs);
+  assert.deepEqual(clusterTabs(fixture).map(({ id }) => id), ['lineage:storage-root', 'host:privacy.example.test', 'host:localhost']);
 });
