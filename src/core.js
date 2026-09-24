@@ -3,16 +3,6 @@ const MAX_TITLE = 300;
 const MAX_URL = 2_048;
 const MAX_NOTE = 2_000;
 
-export function datasetDigest(value) {
-  if (typeof value !== 'string') throw new TypeError('The import source must be text.');
-  let hash = 2166136261;
-  for (const character of value) {
-    hash ^= character.codePointAt(0) ?? 0;
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0).toString(16).padStart(8, '0');
-}
-
 function boundedString(value, label, maximum, required = false) {
   if (typeof value !== 'string') {
     if (!required && value == null) return '';
