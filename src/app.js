@@ -53,19 +53,17 @@ async function runJob(label, work) {
   const controller = new AbortController();
   activeController = controller;
   status(`Loading: ${label}`, true);
+  const cancelled = new Promise((_, reject) => {
+    controller.signal.addEventListener('abort', () => reject(new DOMException('Cancelled', 'AbortError')), { once: true });
+  });
+  cancelled.catch(() => {});
   try {
-    await new Promise((resolve, reject) => {
-      const timer = window.setTimeout(resolve, 45);
-      controller.signal.addEventListener('abort', () => {
-        window.clearTimeout(timer);
-        reject(new DOMException('Cancelled', 'AbortError'));
-      }, { once: true });
-    });
-    const value = await work(controller.signal);
+    const value = await Promise.race([work(), cancelled]);
     status(`${label} complete.`);
     return value;
   } catch (error) {
-    status(error.name === 'AbortError' ? `${label} cancelled. Existing map unchanged.` : `${label} failed: ${error.message}`);
+    // A job replaced by a newer one stays quiet so it does not overwrite the newer job's status.
+    if (activeController === controller) status(error.name === 'AbortError' ? `${label} cancelled. Existing map unchanged.` : `${label} failed: ${error.message}`);
     return null;
   } finally {
     if (activeController === controller) activeController = null;
@@ -254,17 +252,14 @@ function download(content, extension, type) {
 }
 
 async function reviewExport() {
-  const review = await runJob('reviewing export-sensitive fields', async (signal) => {
-    if (signal.aborted) throw new DOMException('Cancelled', 'AbortError');
-    return {
-      queries: project.tabs.filter((tab) => inspectUrl(tab.url).hasQuery).length,
-      fragments: project.tabs.filter((tab) => inspectUrl(tab.url).hasFragment).length,
-      credentials: project.tabs.filter((tab) => inspectUrl(tab.url).hasCredentials).length,
-      local: project.tabs.filter((tab) => inspectUrl(tab.url).local).length,
-      notes: project.tabs.filter((tab) => tab.note).length,
-      duplicates: duplicateGroups(project.tabs).length
-    };
-  });
+  const review = await runJob('reviewing export-sensitive fields', async () => ({
+    queries: project.tabs.filter((tab) => inspectUrl(tab.url).hasQuery).length,
+    fragments: project.tabs.filter((tab) => inspectUrl(tab.url).hasFragment).length,
+    credentials: project.tabs.filter((tab) => inspectUrl(tab.url).hasCredentials).length,
+    local: project.tabs.filter((tab) => inspectUrl(tab.url).local).length,
+    notes: project.tabs.filter((tab) => tab.note).length,
+    duplicates: duplicateGroups(project.tabs).length
+  }));
   if (!review) return;
   elements.review.replaceChildren();
   const list = document.createElement('ul');
@@ -294,10 +289,7 @@ async function reviewExport() {
     button.type = 'button';
     button.textContent = label;
     button.addEventListener('click', async () => {
-      const output = await runJob(`preparing ${format} export`, async (signal) => {
-        if (signal.aborted) throw new DOMException('Cancelled', 'AbortError');
-        return exportMap({ ...project, name: elements.name.value }, format, { stripQuery: elements.stripQuery.checked });
-      });
+      const output = await runJob(`preparing ${format} export`, async () => exportMap({ ...project, name: elements.name.value }, format, { stripQuery: elements.stripQuery.checked }));
       if (output) download(output, extension, type);
     });
     actions.append(button);
@@ -308,10 +300,7 @@ async function reviewExport() {
 
 document.querySelector('#preview-import').addEventListener('click', async () => {
   const sourceText = elements.dataset.value;
-  const tabs = await runJob('validating selected-tab fields', async (signal) => {
-    if (signal.aborted) throw new DOMException('Cancelled', 'AbortError');
-    return parseDataset(sourceText);
-  });
+  const tabs = await runJob('validating selected-tab fields', async () => parseDataset(sourceText));
   if (tabs) {
     pendingTabs = tabs;
     pendingDigest = datasetDigest(sourceText);
@@ -328,9 +317,8 @@ document.querySelector('#load-sample').addEventListener('click', () => {
 elements.file.addEventListener('change', async () => {
   const file = elements.file.files?.[0];
   if (!file) return;
-  const text = await runJob('reading local JSON file', async (signal) => {
+  const text = await runJob('reading local JSON file', async () => {
     if (file.size > 300_000) throw new RangeError('The JSON file is limited to 300,000 bytes.');
-    if (signal.aborted) throw new DOMException('Cancelled', 'AbortError');
     return file.text();
   });
   if (text !== null) {
@@ -344,10 +332,7 @@ document.querySelector('#confirm-import').addEventListener('click', async () => 
     invalidateImportPreview('The import source changed after preview. Preview the current fields before confirming.');
     return;
   }
-  const clustered = await runJob('building explainable clusters', async (signal) => {
-    if (signal.aborted) throw new DOMException('Cancelled', 'AbortError');
-    return clusterTabs(pendingTabs);
-  });
+  const clustered = await runJob('building explainable clusters', async () => clusterTabs(pendingTabs));
   if (!clustered) return;
   project = { version: 1, name: elements.name.value, tabs: clustered.flatMap(({ tabs }) => tabs), clusters: clustered };
   try {
