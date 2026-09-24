@@ -15,7 +15,7 @@ Research leaves you with a window full of tabs you're scared to close. Tabloom g
 
 ## What it does
 
-- Imports a set of tabs you pick, and shows every captured field before using it
+- Imports a set of tabs you pick, or a map you exported earlier as JSON, and shows every captured field before using it
 - Groups tabs into clusters the same way every time, with a plain-language reason for each
 - Keeps your cluster names and notes in the browser
 - Switches between a map view and a full outline
